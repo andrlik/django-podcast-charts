@@ -1,5 +1,5 @@
 [project]
-name = "podcast-charts"
+name = "django-podcast-charts"
 version = "0.0.1"
 description = "An app to track podcast chart positions from various services."
 readme = "README.md"
@@ -35,16 +35,17 @@ build-backend = "hatchling.build"
 allow-direct-references = true
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/podcast_analyzer"]
+packages = ["src/podcast_charts"]
 
 [tool.hatch.build.targets.sdist]
-include = ["src/podcast_analyzer", "tests"]
+include = ["src/podcast_charts", "tests"]
 
 [dependency-groups]
 dev = [
     "bandit>=1.8.0",
     "bump-my-version>=0.28.2",
     "django-browser-reload>=1.17.0",
+    "django-coverage-plugin>=3.1.0",
     "django-debug-toolbar>=4.4.6",
     "django-extensions>=3.2.3",
     "django-types>=0.20.0",

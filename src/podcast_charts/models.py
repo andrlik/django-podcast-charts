@@ -146,7 +146,7 @@ class ChartCategory(TimeStampedModel):
     )
 
     class Meta:
-        ordering = ("parent_label__label, label",)
+        ordering = ("parent_label__label", "label",)
 
     def __str__(self) -> str:  # no cov
         return self.label
@@ -190,7 +190,8 @@ class ChartSourceCategory(TimeStampedModel):
     class Meta:
         constraints = [
             models.constraints.UniqueConstraint(
-                fields=["chart_source", "chart_category"]
+                fields=["chart_source", "chart_category"],
+                name="unique_chart_source_category",
             )
         ]
 
@@ -242,6 +243,7 @@ class PodcastChart(TimeStampedModel):
     class Meta:
         constraints = [
             models.constraints.UniqueConstraint(
+                name="unique_chart_for_source",
                 fields=["chart_source_category", "chart_source"]
             )
         ]
@@ -293,6 +295,7 @@ class PodcastChartVersion(TimeStampedModel):
     class Meta:
         constraints = [
             models.constraints.UniqueConstraint(
+                name="unique_chart_version_for_chart_country",
                 fields=["podcast_chart", "country", "chart_date"]
             )
         ]
@@ -366,6 +369,7 @@ class PodcastChartPodcastIdentifier(TimeStampedModel):
     class Meta:
         constraints = [
             models.constraints.UniqueConstraint(
+                name="unique_source_podcast_id",
                 fields=["chart_source", "chart_source_podcast_id"]
             )
         ]
@@ -405,7 +409,10 @@ class PodcastChartPosition(TimeStampedModel):
 
     class Meta:
         constraints = [
-            models.constraints.UniqueConstraint(fields=["chart_version", "position"])
+            models.constraints.UniqueConstraint(
+                name="unique_position_for_chart_version",
+                fields=["chart_version", "position"]
+            )
         ]
 
     def __str__(self) -> str:  # no cov

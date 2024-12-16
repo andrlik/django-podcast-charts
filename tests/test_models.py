@@ -5,5 +5,5 @@
 #
 # SPDX-License-Identifier: BSD-3-Clause
 
-def dummy_test() -> None:
+def test_dummy_test() -> None:
     assert True

@@ -6,3 +6,7 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
 """URL conf for podcast_charts"""
+
+app_name = "podcast_charts"
+
+urlpatterns = []
