@@ -165,6 +165,7 @@ class ChartSourceCategory(TimeStampedModel):
         created (datetime.datetime): The datetime the category was created.
         modified (datetime.datetime): The datetime the category was last modified.
     """
+
     id: int
     chart_source = models.CharField(
         max_length=50,
@@ -211,6 +212,7 @@ class PodcastChart(TimeStampedModel):
         created (datetime.datetime): The datetime the podcast chart was created.
         modified (datetime.datetime): The datetime the podcast chart was last modified.
     """
+
     id: int
     chart_source = models.CharField(
         max_length=50,
@@ -335,6 +337,7 @@ class PodcastChartPodcastIdentifier(TimeStampedModel):
         created (datetime.datetime): The datetime this podcast data was created.
         modified (datetime.datetime): The datetime this podcast data was last modified.
     """
+
     id: int
     podcast_title = models.CharField(
         max_length=250,

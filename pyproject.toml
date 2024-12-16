@@ -6,7 +6,7 @@ readme = "README.md"
 authors = [
     { name = "Daniel Andrlik", email = "daniel@andrlik.org" }
 ]
-requires-python = ">=3.13"
+requires-python = ">=3.12"
 dependencies = [
     "beautifulsoup4>=4.12.3",
     "django>=5.1.4",
