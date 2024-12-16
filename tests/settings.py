@@ -53,6 +53,7 @@ INSTALLED_APPS = [
     "django_browser_reload",
     "django_watchfiles",
     "django_extensions",
+    "debug_toolbar",
     "podcast_charts",
 ]
 
