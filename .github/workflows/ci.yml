@@ -1,0 +1,79 @@
+name: Tests
+
+# Enable Buildkit and let compose use it to speed up image building
+#env:
+#  DOCKER_BUILDKIT: 1
+#  COMPOSE_DOCKER_CLI_BUILD: 1
+
+concurrency:
+    group: test-${{ github.head_ref }}
+    cancel-in-progress: true
+
+env:
+  DJANGO_DEBUG: True
+  PYTHONUNBUFFERED: "1"
+  FORCE_COLOR: "1"
+  DJANGO_SETTINGS_MODULE: "tests.settings"
+
+on:
+  pull_request:
+    branches: [ "master", "main" ]
+    paths-ignore: [ "docs/**", "README.md", "CHANGELOG.md", "CONTRIBUTING.md", "CODE_OF_CONDUCT.md", "SECURITY.md", "LICENSE", "justfile", ".github/workflows/publish.yml", ".github/dependabot.yml", ".github/*_TEMPLATE/*.md"]
+
+  push:
+    branches: [ "master", "main" ]
+    paths-ignore: [ "docs/**", "README.md", "CHANGELOG.md", "CONTRIBUTING.md", "CODE_OF_CONDUCT.md", "SECURITY.md", "LICENSE", "justfile", ".github/workflows/publish.yml", ".github/dependabot.yml", ".github/*_TEMPLATE/*.md"]
+
+
+jobs:
+  # With no caching at all the entire ci process takes 4m 30s to complete!
+  run:
+    name: Python ${{ matrix.python-version }} Django ${{ matrix.django-version }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest]
+        python-version: [ "3.12", "3.13" ]
+        django-version: ["5.0", "5.1"]
+
+    steps:
+
+    - name: Checkout Code Repository
+      uses: actions/checkout@v4
+
+    - name: Install uv
+      uses: astral-sh/setup-uv@v3
+      with:
+        enable-cache: true
+        cache-dependency-glob: uv.lock
+
+    - name: Set up Python ${{ matrix.python-version }}
+      run: uv python install ${{ matrix.python-version }}
+
+    - name: Setup cache
+      uses: actions/cache@v4
+      with:
+        path: .venv
+        key: venv-${{ runner.os }}-${{ matrix.python-version}}-Django-${{ matrix.django-version }}-${{ hashFiles('uv.lock') }}
+        restore-keys: venv-${{ runner.os }}-${{ matrix.python-version}}-Django-${{ matrix.django-version }}
+
+    - name: Create venv, install dependencies
+      run: |
+        uv sync
+        source .venv/bin/activate
+        echo "$VIRTUAL_ENV/bin" >> $GITHUB_PATH
+        echo "VIRTUAL_ENV=$VIRTUAL_ENV" >> $GITHUB_ENV
+
+    - name: Test with pytest
+      run: |
+        sqlite3 tests/podcast_charts.sqlite '.databases'
+        PYTHONPATH="$PYTHONPATH:$(pwd)" uv run --with Django~="${{ matrix.django-version }}.0" django-admin collectstatic --noinput
+        uv run --with Django~="${{ matrix.django-version }}.0" -m pytest --cov-report= --cov-config=pyproject.toml --cov=src/podcast_charts
+        uv run --with Django~="${{ matrix.django-version }}.0" -m coverage lcov
+
+    - name: Submit coverage data to coveralls.io
+      uses: coverallsapp/github-action@master
+      with:
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        path-to-lcov: "coverage.lcov"

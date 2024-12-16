@@ -1,0 +1,36 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+.tox
+
+# Generated docs
+site/*
+
+# Env files
+.envrc
+.env
+.python-version
+
+# Editors
+.idea/*
+.nova/*
+
+# Django specific
+staticfiles/*
+media/*
+# This is only used to make PyCharm happy.
+manage.py
+
+# Coverage
+.coverage*
+.coverage
+
+# Database
+*.sqlite
