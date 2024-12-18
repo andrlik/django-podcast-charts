@@ -137,7 +137,7 @@ class ChartCategory(TimeStampedModel):
     label = models.CharField(
         max_length=200, unique=True, help_text=_("The label of the category.")
     )
-    parent_label = models.ForeignKey(
+    parent = models.ForeignKey(
         "self",
         null=True,
         blank=True,
@@ -146,10 +146,19 @@ class ChartCategory(TimeStampedModel):
     )
 
     class Meta:
-        ordering = ("parent_label__label", "label",)
+        ordering = (
+            "parent_label__label",
+            "label",
+        )
 
     def __str__(self) -> str:  # no cov
         return self.label
+
+    def is_parent_category(self) -> bool:
+        """Is this category a top level category?"""
+        if not self.parent:
+            return True
+        return False
 
 
 class ChartSourceCategory(TimeStampedModel):
@@ -244,7 +253,7 @@ class PodcastChart(TimeStampedModel):
         constraints = [
             models.constraints.UniqueConstraint(
                 name="unique_chart_for_source",
-                fields=["chart_source_category", "chart_source"]
+                fields=["chart_source_category", "chart_source"],
             )
         ]
 
@@ -296,7 +305,7 @@ class PodcastChartVersion(TimeStampedModel):
         constraints = [
             models.constraints.UniqueConstraint(
                 name="unique_chart_version_for_chart_country",
-                fields=["podcast_chart", "country", "chart_date"]
+                fields=["podcast_chart", "country", "chart_date"],
             )
         ]
 
@@ -370,7 +379,7 @@ class PodcastChartPodcastIdentifier(TimeStampedModel):
         constraints = [
             models.constraints.UniqueConstraint(
                 name="unique_source_podcast_id",
-                fields=["chart_source", "chart_source_podcast_id"]
+                fields=["chart_source", "chart_source_podcast_id"],
             )
         ]
 
@@ -411,7 +420,7 @@ class PodcastChartPosition(TimeStampedModel):
         constraints = [
             models.constraints.UniqueConstraint(
                 name="unique_position_for_chart_version",
-                fields=["chart_version", "position"]
+                fields=["chart_version", "position"],
             )
         ]
 

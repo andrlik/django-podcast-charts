@@ -28,51 +28,106 @@ logger = logging.getLogger(__name__)
 
 
 class ApplePodcastsChartBackend(ChartBackend):
+    """
+    Chart backend for Apple Podcasts.
+
+    Attributes:
+        base_url (str): The base URL of the Podcasts webview.
+    """
+
     base_url = "https://podcasts.apple.com"
 
     @staticmethod
     def _form_podcast_data_from_itunes_podcast_json(
         podcast: dict[str, Any],
     ) -> PodcastData:
+        """
+        Given a the dict representation of the json response from the iTunes
+        Search API, parse the data into a PodcastData object.
+
+        Args:
+            podcast (dict[str, Any]): A dict representation of the search API
+               response.
+
+        Returns:
+            PodcastData: A PodcastData object.
+        """
         categories = []
         index_num = 0
         for category_name in podcast["genres"]:
-            categories.append(
-                PodcastCategory(
-                    label=category_name, remote_id=podcast["genreIds"][index_num]
+            if category_name != "Podcasts":
+                categories.append(
+                    PodcastCategory(
+                        label=category_name, remote_id=podcast["genreIds"][index_num]
+                    )
                 )
-            )
             index_num += 1
         return PodcastData(
             podcast_title=podcast["trackName"],
-            podcast_id=podcast["trackId"],
+            podcast_id=str(podcast["trackId"]),
             categories=categories,
             backend_url=podcast["trackViewUrl"],
         )
 
     @staticmethod
     def _extract_chart_id_from_soup(soup: BeautifulSoup) -> ChartIdReturnValue:
-        kwargs = {"data-testId": "header-title"}
-        header_element = soup.find(name="h2", attrs=kwargs)
-        if header_element is None:
-            msg = "Could not find the room link element in html body."
+        """
+        Given a BeautifulSoup object of the HTML webview for a category page
+        find and return details on where to get the chart data.
+
+        Args:
+             soup (BeautifulSoup): A BeautifulSoup object of the HTML webview.
+
+        Returns:
+            ChartIdReturnValue: A ChartIdReturnValue object.
+
+        Raises:
+            ChartParseError: If the html cannot be parsed successfully.
+        """
+        h2_elements = soup.find_all("h2")
+        if not h2_elements:
+            msg = "Could not find header element for search"
             raise ChartParseError(msg)
-        try:
-            anchor = header_element.find("a")
-            if anchor is None:
-                msg = "Could not find link to genre chart"
-                raise ChartParseError(msg)
-            chart_url = anchor.attrs["href"]  # type: ignore
-        except AttributeError as ae:
-            msg = "Room link was missing an href element for finding genre chart"
-            raise ChartParseError(msg) from ae
-        chart_id = chart_url.rsplit("/", maxsplit=1)[0]
-        return ChartIdReturnValue(chart_id=chart_id, unique_for_country=False)
+        for h2_element in h2_elements:
+            if (
+                "data-testid" in h2_element.attrs.keys()
+                and h2_element.attrs["data-testid"] == "header-title"
+            ):
+                anchor = h2_element.find("a")
+                if anchor is None:
+                    msg = "Could not find link element to category chart"
+                    raise ChartParseError(msg)
+                try:
+                    chart_url = anchor.attrs["href"]
+                except KeyError as ke:
+                    msg = "Link element does not contain an href attribute!: {ke}"
+                    raise ChartParseError(msg) from ke
+                chart_id = chart_url.rsplit("/", maxsplit=1)[1]
+                return ChartIdReturnValue(
+                    chart_id=chart_id, unique_for_country=False, webview_url=chart_url
+                )
+        msg = "Could not find any chart category links in results!"
+        raise ChartParseError(msg)
 
     @staticmethod
     def _extract_apple_chart_positions_from_soup(
         soup: BeautifulSoup, podcast_apple_ids: list[str]
     ) -> list[ChartPositionData]:
+        """
+        Given a BeautifulSoup object of the HTML webview for a chart, return a list
+        of podcast chart positions within it.
+
+        Args:
+             soup (BeautifulSoup): A BeautifulSoup object of the HTML webview.
+             podcast_apple_ids (list[str]): A list of remote ids to limit the
+                 results to.
+
+        Returns:
+            list[ChartPositionData]: A list of ChartPositionData objects.
+
+        Raises:
+            ChartParseError: If the element for the podcast list cannot be found.
+        """
         try:
             ul_element = soup.find(class_="shelf-content").ul  # type: ignore
         except AttributeError as ae:
@@ -85,8 +140,8 @@ class ApplePodcastsChartBackend(ChartBackend):
             if not link:
                 logger.error(f"Could not parse podcast at position {position}")
             else:
-                podcast_url = link["href"]
-                podcast_id = podcast_url.rsplit("/id", max_splits=1)[0]
+                podcast_url = str(link["href"])
+                podcast_id = podcast_url.rsplit("/id", maxsplit=1)[1]
                 if (
                     len(podcast_apple_ids) > 0 and podcast_id in podcast_apple_ids
                 ) or len(podcast_apple_ids) == 0:
@@ -139,22 +194,22 @@ class ApplePodcastsChartBackend(ChartBackend):
             msg = f"Received invalid status code from ITunes search API: {hse}"
             raise PodcastSearchError(msg) from hse
         data = response.json()
-        if data["num_results"] == 0:
+        if data["resultCount"] == 0:
             msg = "Received 0 results for podcast!"
             raise PodcastNotFoundError(msg)
-        elif data["num_results"] == 1:
+        elif data["resultCount"] == 1:
             return self._form_podcast_data_from_itunes_podcast_json(data["results"][0])
-        elif data["num_results"] > 1 and (podcast_rss is None and podcast_id is None):
+        elif data["resultCount"] > 1 and (podcast_rss is None and podcast_id is None):
             msg = (
-                f"Received {data['num_results']} records from remote server, but no "
+                f"Received {data['resultCount']} records from remote server, but no "
                 f"rss feed or id is available to narrow results."
             )
             raise MultiplePodcastsFoundError(msg)
         else:
             for podcast in data["results"]:
-                if (podcast_id is not None and podcast["trackId"] == podcast_id) or (
-                    podcast_rss is not None and podcast["feedUrl"] == podcast_rss
-                ):
+                if (
+                    podcast_id is not None and str(podcast["trackId"]) == podcast_id
+                ) or (podcast_rss is not None and podcast["feedUrl"] == podcast_rss):
                     return self._form_podcast_data_from_itunes_podcast_json(podcast)
             msg = "Podcast was not found in results!"
             raise PodcastNotFoundError(msg)
@@ -200,6 +255,7 @@ class ApplePodcastsChartBackend(ChartBackend):
         country: str,
         *,
         filter_to_podcast_ids: list[str] | None,
+        remote_chart_id_is_category_id: bool = False,
     ) -> list[ChartPositionData]:
         """
         Fetch the chart data from Apple Podcasts.
@@ -209,6 +265,8 @@ class ApplePodcastsChartBackend(ChartBackend):
             country (str): The country code to use for fetching the market data.
             filter_to_podcast_ids (list[str] | None): An optional list of podcast ids to
                 filter the results against.
+            remote_chart_id_is_category_id (bool): Whether the remote id is a category
+                as opposed to a chart id.
 
         Returns:
             list[ChartPositionData]: The chart positions retrieved from Apple.
@@ -222,7 +280,10 @@ class ApplePodcastsChartBackend(ChartBackend):
             raise NotImplementedError(msg)
         if filter_to_podcast_ids is None:
             filter_to_podcast_ids = []
-        url = f"{self.base_url}/{country}/room/{remote_chart_id}"
+        if remote_chart_id_is_category_id:
+            url = f"{self.base_url}/{country}/charts?genre={remote_chart_id}"
+        else:
+            url = f"{self.base_url}/{country}/room/{remote_chart_id}"
         async with httpx.AsyncClient() as client:
             try:
                 response = await client.get(url)
