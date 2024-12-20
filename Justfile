@@ -54,6 +54,7 @@ _check-env:
 bootstrap: uv-install _install-pre-commit _check-env
     #!/usr/bin/env bash
     uv sync
+    uv run playwright install --with-deps
     DJANGO_SETTINGS_MODULE="tests.settings" PYTHONPATH="$PYTHONPATH:$(pwd)" uv run django-admin migrate
 
 # Checks that project is ready for development.

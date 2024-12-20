@@ -284,15 +284,37 @@ class ApplePodcastsChartBackend(ChartBackend):
             url = f"{self.base_url}/{country}/charts?genre={remote_chart_id}"
         else:
             url = f"{self.base_url}/{country}/room/{remote_chart_id}"
-        async with httpx.AsyncClient() as client:
-            try:
-                response = await client.get(url)
-                response.raise_for_status()
-            except httpx.HTTPStatusError as hse:
-                msg = f"Received invalid status code from Apple Podcasts: {hse}"
-                raise AppleChartFetchError(msg) from hse
-        chart_soup = BeautifulSoup(response.text)
+        if remote_chart_id_is_category_id:
+            # Do the playwright fetch.
+            chart_soup = await self.playwright_fetch(url)
+        else:
+            async with httpx.AsyncClient() as client:
+                try:
+                    response = await client.get(url)
+                    response.raise_for_status()
+                except httpx.HTTPStatusError as hse:
+                    msg = f"Received invalid status code from Apple Podcasts: {hse}"
+                    raise AppleChartFetchError(msg) from hse
+            chart_soup = BeautifulSoup(response.text)
         chart_positions = self._extract_apple_chart_positions_from_soup(
             chart_soup, podcast_apple_ids=filter_to_podcast_ids
         )
         return chart_positions
+
+    async def playwright_fetch(self, url: str) -> BeautifulSoup:  # type: ignore
+        """
+        Use playwright to fetch the page, scroll to load all podcasts, and then
+        get the soup object. In most cases, its more efficient to use the HTTPX
+        fetch approach, but in cases where pages depend on JavaScript AJAX
+        calls to load data a full browser is needed.
+
+        Args:
+            url (str): The URL to fetch the data from.
+
+        Returns:
+            BeautifulSoup: The BeautifulSoup object of the page rendered HTML.
+
+        Raises:
+            AppleChartFetchError: If the page could not be fetched.
+        """
+        pass
